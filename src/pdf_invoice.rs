@@ -86,7 +86,7 @@ impl PdfInvoice {
             let empty_paragraph = empty_paragraph.clone().styled(style::Style::new().with_font_size(4));
             doc.push(empty_paragraph);
             for item in &category.line_items {
-                let item_title = format!("[{}] [{}] [{}]", item.date, item.description, item.cost);
+                let item_title = format!("[{}] [{}] [{}] [{}]", item.date, item.description, item.vendor, item.cost);
                 let item_paragraph = elements::Paragraph::new(item_title).aligned(Alignment::Left);
                 doc.push(item_paragraph);
                 let empty_paragraph = elements::Paragraph::new("").aligned(Alignment::Left);
