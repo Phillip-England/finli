@@ -1,43 +1,51 @@
-use std::path::Path;
+use std::str::FromStr;
 
 use clap::Parser;
-use walkdir::WalkDir;
+use clap::Subcommand;
+use genpdf::Element;
+use genpdf::{elements, Alignment, Document, style};
 
+use crate::pdf_invoice::PdfInvoice;
+
+mod pdf_expense_category;
 mod pdf_line_item;
-
-use crate::pdf_line_item::PdfLineItem;
+mod pdf_invoice;
 
 #[derive(Parser, Debug)]
 #[command(name = "", about = "", version = "1.0")]
 struct Args {
-    #[arg(short, long)]
-    run: String,
-    dir: String,
+    #[command(subcommand)]
+    command: Command,
 }
 
-fn run_sort(args: Args) -> Option<String> {
-    let line_items = PdfLineItem::new_from_dir(&args.dir);
-    if line_items.is_err() {
-        let err = line_items.err().unwrap();
+#[derive(Subcommand, Debug)]
+enum Command {
+    Generate { dir: String, invoice_name: String },
+}
+
+fn run_generate(dir: String, invoice_name: String) -> Option<String> {
+    let invoice = PdfInvoice::new_from_dir(&dir, &invoice_name);
+    if invoice.is_err() {
+        let err = invoice.err().unwrap();
         return Some(err);
     }
-    let line_items = line_items.unwrap();
-    for item in line_items {
-        println!("{:?}", item);
+    let invoice = invoice.unwrap();
+    let err = invoice.generate();
+    if err.is_some() {
+        let err = err.unwrap();
+        return Some(err);
     }
-
     return None;
 }
 
 fn main() {
     let args = Args::parse();
-
-    if args.run == "sort" {
-        let err = run_sort(args);
-        if err.is_some() {
-            panic!("{}", err.unwrap());
+    match args.command {
+        Command::Generate { dir, invoice_name } => {
+            let err = run_generate(dir, invoice_name);
+            if err.is_some() {
+                panic!("{}", err.unwrap());
+            }
         }
-        return;
     }
-
 }
