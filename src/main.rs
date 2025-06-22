@@ -1,15 +1,13 @@
-use std::str::FromStr;
+use std::fs;
 
 use clap::Parser;
 use clap::Subcommand;
-use genpdf::Element;
-use genpdf::{elements, Alignment, Document, style};
 
 use crate::pdf_invoice::PdfInvoice;
+use crate::pdf_sorted_dir::PdfSortedDir;
 
-mod pdf_expense_category;
-mod pdf_line_item;
 mod pdf_invoice;
+mod pdf_sorted_dir;
 
 #[derive(Parser, Debug)]
 #[command(name = "", about = "", version = "1.0")]
@@ -21,6 +19,7 @@ struct Args {
 #[derive(Subcommand, Debug)]
 enum Command {
     Generate { dir: String, invoice_name: String },
+    Sort { dir: String, out: String },
 }
 
 fn run_generate(dir: String, invoice_name: String) -> Option<String> {
@@ -38,6 +37,11 @@ fn run_generate(dir: String, invoice_name: String) -> Option<String> {
     return None;
 }
 
+fn run_sort(dir: String, out: String) -> Result<(), String> {
+    let sorted_dir = PdfSortedDir::new(&dir, &out)?;
+    return Ok(());
+}
+
 fn main() {
     let args = Args::parse();
     match args.command {
@@ -45,6 +49,12 @@ fn main() {
             let err = run_generate(dir, invoice_name);
             if err.is_some() {
                 panic!("{}", err.unwrap());
+            }
+        },
+        Command::Sort { dir, out } => {
+            let err = run_sort(dir, out);
+            if err.is_err() {
+                panic!("{:?}", err.unwrap());
             }
         }
     }
