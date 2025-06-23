@@ -19,3 +19,9 @@ Creates an invoice from a directory full of `.pdf` files:
 ```bash
 finli generate ./some_dir "INVOICE TITLE"
 ```
+
+## Splitting Receipts
+Takes a directory full of invoices, scans for 'split' receipts, duplicates them over 'southroads' and 'utica', then sorts each receipt by location into subdirectories.
+```bash
+finli sort ./some_dir ./some_destination
+```

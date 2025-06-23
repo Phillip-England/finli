@@ -2,8 +2,11 @@
 use std::path::Path;
 use std::fs;
 
+use rust_decimal::Decimal;
+
 use crate::pdf_invoice::PdfLineItem;
 
+#[derive(Debug)]
 pub struct PdfSortedDir {
     dir_root: String,
     dir_southroads: String,
@@ -42,7 +45,114 @@ impl PdfSortedDir {
             }
         }
 
-        println!("{:?}", split_line_items);
+        // duplicating our split pdfs
+        for item in split_line_items {
+
+            // getting the cost in cents and determining if we are even
+            let cost_in_cents = (item.cost * Decimal::from(100)).round();
+            let item_is_even = cost_in_cents % Decimal::from(2) == Decimal::from(0);
+
+            // setting up the cost
+            let mut utica_cost: Decimal;
+            let mut southroads_cost: Decimal;
+            let mut half_cost_in_cents: Decimal;
+
+            // manging even / odd costs
+            if item_is_even {
+                half_cost_in_cents = (cost_in_cents) / Decimal::from(2);
+                southroads_cost = half_cost_in_cents / Decimal::from(100);
+                utica_cost  = half_cost_in_cents / Decimal::from(100);
+            } else {
+                half_cost_in_cents = (cost_in_cents - Decimal::from(1)) / Decimal::from(2);
+                southroads_cost = half_cost_in_cents / Decimal::from(100);
+                utica_cost  = (half_cost_in_cents + Decimal::from(1)) / Decimal::from(100);
+            }
+
+            // sanity check
+            if (utica_cost + southroads_cost) != item.cost {
+                return Err(format!("PDF SPLIT ERROR: when splitting a PdfLineItem, the cost of the two pdfs does not equal the total cost of the original\n{:?}", item));
+            }
+
+            // cloning line item into two and updating costs
+            let mut utica_line_item = item.clone();
+            utica_line_item.set_cost(utica_cost);
+            let err = utica_line_item.set_location("utica.pdf".to_owned());
+            if err.is_some() {
+                return Err(err.unwrap());
+            }
+            let mut southroads_line_item = item.clone().to_owned();
+            southroads_line_item.set_cost(southroads_cost);
+            let err = southroads_line_item.set_location("southroads.pdf".to_owned());
+            if err.is_some() {
+                return Err(err.unwrap())
+            }
+
+            // setting up new paths for output files
+            utica_line_item.set_source_dir(&(out.to_owned() + "/utica"));
+            southroads_line_item.set_source_dir(&(out.to_owned() + "/southroads"));
+
+            // getting the details for copying/pasting
+            let source_dest = item.path;
+            let utica_out = utica_line_item.path;
+            let southroads_out = southroads_line_item.path;
+
+            // copying the files
+            let utica_file = fs::copy(source_dest.clone(), utica_out.clone());
+            if utica_file.is_err() {
+                let err = utica_file.err().unwrap();
+                println!("{}", err);
+                return Err(format!("FILE COPY FAILURE: failed to copy {} to {}", source_dest, utica_out))
+            }
+            let southroads_file = fs::copy(source_dest.clone(), southroads_out.clone());
+            if southroads_file.is_err() {
+                let err = southroads_file.err().unwrap();
+                println!("{}", err);
+                return Err(format!("FILE COPY FAILURE: failed to copy {} to {}", source_dest, southroads_out))
+            }
+
+
+
+
+        };
+
+        // sorting our non-split pdfs
+        for mut item in line_items {
+            
+            // skipping split locatons
+            let location = item.location.clone();
+            if location.contains("split") {
+                continue;
+            }
+            
+            // getting copy/paste destinations
+            let source_dest = item.path.clone();
+            
+            // copy/pasting for southroads
+            if location.contains("southroads") {
+                item.set_source_dir(&(out.to_owned() + "/southroads"));
+                let file = fs::copy(source_dest.clone(), item.path.clone());
+                if file.is_err() {
+                    let err = file.err().unwrap();
+                    println!("{}", err);
+                    return Err(format!("FILE COPY FAILURE: failed to copy {} to {}", source_dest, item.path))
+                }
+                continue;
+            }
+
+            // copy/pasting for utica
+            if location.contains("utica") {
+                item.set_source_dir(&(out.to_owned() + "/utica"));
+                let file = fs::copy(source_dest.clone(), item.path.clone());
+                if file.is_err() {
+                    let err = file.err().unwrap();
+                    println!("{}", err);
+                    return Err(format!("FILE COPY FAILURE: failed to copy {} to {}", source_dest, item.path))
+                }
+            }
+
+        }
+
+
 
         let sorted_dir = PdfSortedDir {
             dir_root: out_path.to_str().unwrap().to_owned(), // cannot fail
@@ -51,25 +161,5 @@ impl PdfSortedDir {
         };
         return Ok(sorted_dir);
     }
-
-}
-
-
-pub struct PdfSplitAllocator {
-
-}
-
-impl PdfSplitAllocator {
-    
-    pub fn new_from_line_item(line_item: PdfLineItem) -> Result<PdfSplitAllocator, String> {
-        if !line_item.location.contains("split") {
-            return Err(format!("INVALID LINE ITEM PROVDIED: only line items marked 'split' can be used to generate an allocator\n{:?}", line_item));
-        }
-        let allocator = PdfSplitAllocator {
-
-        };
-        return Ok(allocator);
-    }
-
 
 }

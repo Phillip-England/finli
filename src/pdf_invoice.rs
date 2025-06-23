@@ -329,4 +329,38 @@ impl PdfLineItem {
         return Ok(line_items);
     }
 
+    pub fn set_cost(&mut self, new_cost: Decimal) {
+        let old_cost = self.cost.to_string();
+        let original_path = self.path.clone();
+        self.cost = new_cost;
+        self.path = original_path.replace(&format!("-{}-", old_cost), &format!("-{}-", new_cost));
+        self.trimmed_path = original_path.replace(&format!("-{}-", old_cost), &format!("-{}-", &new_cost.to_string()));
+    }
+
+
+    pub fn set_location(&mut self, new_location: String) -> Option<String> {
+        let new_location = new_location.to_lowercase();
+        let valid_locations = vec!["southroads.pdf", "utica.pdf", "split.pdf"];
+        if !valid_locations.contains(&new_location.as_str()) {
+            return Some(format!(
+                "INVALID LOCATION: the 'location' field must be 'southroads', 'utica', or 'split'\n{}",
+                self.trimmed_path
+            ));
+        }
+        let old_location = self.location.clone();
+        let original_path = self.path.clone();
+        self.location = new_location.clone();
+        self.path = original_path.replace(&format!("-{}", old_location), &format!("-{}", new_location));
+        self.trimmed_path = original_path.replace(&format!("-{}", old_location), &format!("-{}", new_location));
+        return None
+    }
+
+    pub fn set_source_dir(&mut self, new_source: &str) {
+        let old_source = self.source_dir.clone();
+        let old_path = self.path.clone();
+        self.source_dir = new_source.to_owned();
+        self.path = self.source_dir.clone() + &old_path[old_source.len()..old_path.len()].to_owned();
+    }
+
+
 }
