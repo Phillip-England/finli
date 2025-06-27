@@ -3,7 +3,7 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 use rust_decimal::Decimal;
-use genpdf::{elements, Alignment, Document, Element, style};
+use genpdf::{elements, fonts::{self, FontData, FontFamily}, style, Alignment, Document, Element};
 
 
 
@@ -17,7 +17,7 @@ pub struct PdfInvoice {
 impl PdfInvoice {
 
     pub fn new_from_dir(dir: &str, invoice_name: &str) -> Result<PdfInvoice, String> {
-        
+
         // extract the line items
         let line_items = PdfLineItem::new_from_dir(&dir);
         if line_items.is_err() {
@@ -49,14 +49,33 @@ impl PdfInvoice {
 
     pub fn generate(&self) -> Option<String> {
 
+		// loading in our fonts
+		let regular = include_bytes!("../fonts/LiberationSans-Regular.ttf") as &[u8];
+		let bold = include_bytes!("../fonts/LiberationSans-Bold.ttf");
+		let italic = include_bytes!("../fonts/LiberationSans-Italic.ttf");
+		let bold_italic = include_bytes!("../fonts/LiberationSans-BoldItalic.ttf");
+
+		let regular_data = genpdf::fonts::FontData::new(regular.to_vec(), None).expect("failed to load in the regular font");
+		let bold_data = genpdf::fonts::FontData::new(regular.to_vec(), None).expect("failed to load in the bold font");
+		let italic_data = genpdf::fonts::FontData::new(regular.to_vec(), None).expect("failed to load in the italic font");
+		let bold_italic_data = genpdf::fonts::FontData::new(regular.to_vec(), None).expect("failed to load in the bold-italic font");
+
+
+		let font_family = FontFamily {
+			regular: regular_data,
+			bold: bold_data,
+			italic: italic_data,
+			bold_italic: bold_italic_data,
+		};
+
         // prepare the pdf
-        let font_family = genpdf::fonts::from_files("./fonts", "LiberationSans", None);
-        if font_family.is_err() {
-            let err = font_family.err().unwrap();
-            println!("{:?}", err); // third-party error
-            return Some(format!("THIRD PARTY FAILURE: failed to load the font family for pdf generation"));
-        }
-        let font_family = font_family.unwrap();
+        // let font_family = genpdf::fonts::from_files("./fonts", "LiberationSans", None);
+        // if font_family.is_err() {
+        //     let err = font_family.err().unwrap();
+        //     println!("{:?}", err); // third-party error
+        //     return Some(format!("THIRD PARTY FAILURE: failed to load the font family for pdf generation"));
+        // }
+        // let font_family = font_family.unwrap();
         let mut doc = Document::new(font_family);
         doc.set_title(self.name.clone());
         let mut decorator = genpdf::SimplePageDecorator::new();
